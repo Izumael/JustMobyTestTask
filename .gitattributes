@@ -1,0 +1,25 @@
+ text=auto eol=lf
+
+.cs        text diff=csharp
+.shader    text
+.cginc     text
+.hlsl      text
+
+.unity     text merge=unityyamlmerge diff
+.prefab   text merge=unityyamlmerge diff
+.asset    text merge=unityyamlmerge diff
+.meta     text merge=unityyamlmerge diff
+
+.yml       text
+.yaml      text
+
+.png       binary
+.jpg       binary
+.jpeg      binary
+.tga       binary
+.psd       binary
+.fbx       binary
+.wav       binary
+.mp3       binary
+.ogg       binary
+.zip       binary
