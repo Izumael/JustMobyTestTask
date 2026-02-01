@@ -6,11 +6,11 @@ using Zenject;
 
 public class GameInstaller : MonoInstaller
 {
-    [SerializeField] private GameConfigSO _gameConfigSO;
+    [SerializeField] private GameConfigSO gameConfigSO;
 
     public override void InstallBindings()
     {
-        Container.BindInstance(_gameConfigSO).AsSingle();
+        Container.BindInstance(gameConfigSO).AsSingle();
 
         Container.Bind<IGameConfigProvider>().To<ScriptableObjectGameConfigProvider>().AsSingle();
     }
