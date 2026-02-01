@@ -1,7 +1,9 @@
 ﻿using Core.Domain;
 using Core.Interfaces;
+using Gameplay.Cubes;
 using UI.Views;
 using UnityEngine;
+using UnityEngine.UI;
 using Zenject;
 
 namespace UI.Panels
@@ -10,6 +12,12 @@ namespace UI.Panels
     {
         [SerializeField]
         private Transform contentRoot;
+
+        [SerializeField]
+        private ScrollRect scrollRect;
+
+        [SerializeField]
+        private RectTransform dragLayer;
 
         [SerializeField]
         private CubeItemView cubeItemPrefab;
@@ -67,7 +75,9 @@ namespace UI.Panels
 
                 //Цвета объектам устанавливаем "по кругу"
                 Color color = config.CubeColors[i % config.CubeColors.Count];
-                item.SetColor(color);
+                item.Bind(new CubeDescriptor(color));
+                CubeDragHandler drag = item.gameObject.AddComponent<CubeDragHandler>();
+                drag.Initialize(scrollRect, dragLayer, cubeItemPrefab, _container);
             }
         }
     }
