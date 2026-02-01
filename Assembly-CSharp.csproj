@@ -48,6 +48,7 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\UI\Panels\BottomPanelView.cs" />
     <Compile Include="Assets\Scripts\Core\Interfaces\IGameConfigProvider.cs" />
+    <Compile Include="Assets\Scripts\Core\Domain\GameConfig.cs" />
     <Compile Include="Assets\Scripts\Core\Services\TowerService.cs" />
     <Compile Include="Assets\Scripts\Infrastructure\Localization\UnityLocalizationService.cs" />
     <Compile Include="Assets\Scripts\Gameplay\Tower\TowerController.cs" />
@@ -57,13 +58,17 @@
     <Compile Include="Assets\Scripts\Infrastructure\Persistence\PlayerPrefsProgressService.cs" />
     <Compile Include="Assets\Scripts\Core\Domain\CubeData.cs" />
     <Compile Include="Assets\Scripts\Core\Interfaces\IMessageService.cs" />
+    <Compile Include="Assets\Scripts\Infrastructure\Debug\ConfigDebugView.cs" />
     <Compile Include="Assets\Scripts\Gameplay\DragDrop\DropZoneChecker.cs" />
     <Compile Include="Assets\Scripts\UI\Panels\TopRightPanelView.cs" />
     <Compile Include="Assets\Scripts\Infrastructure\Input\InputRouter.cs" />
+    <Compile Include="Assets\Scripts\Infrastructure\Config\ScriptableObjectGameConfigProvider.cs" />
     <Compile Include="Assets\Scripts\Core\Interfaces\IProgressService.cs" />
     <Compile Include="Assets\Scripts\UI\Controllers\MessageController.cs" />
+    <Compile Include="Assets\Scripts\Infrastructure\Installers\GameInstaller.cs" />
     <Compile Include="Assets\Scripts\UI\Panels\TopLeftPanelView.cs" />
     <Compile Include="Assets\Scripts\Gameplay\Tower\TowerView.cs" />
+    <Compile Include="Assets\Scripts\Core\Domain\GameConfigSO.cs" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>
