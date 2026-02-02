@@ -76,8 +76,8 @@ namespace UI.Panels
                 //Цвета объектам устанавливаем "по кругу"
                 Color color = config.CubeColors[i % config.CubeColors.Count];
                 item.Bind(new CubeDescriptor(color));
-                CubeDragHandler drag = item.gameObject.AddComponent<CubeDragHandler>();
-                drag.Initialize(scrollRect, dragLayer, cubeItemPrefab, _container);
+                CubeDragHandler drag = item.gameObject.GetComponent<CubeDragHandler>();
+                drag.Initialize(scrollRect, dragLayer);
             }
         }
     }

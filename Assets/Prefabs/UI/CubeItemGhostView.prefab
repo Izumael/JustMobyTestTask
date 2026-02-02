@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 374514394446959932}
   - component: {fileID: -8129042550844358016}
   m_Layer: 0
-  m_Name: CubeItemView
+  m_Name: CubeItemGhostView
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -118,4 +118,3 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minDragDistance: 10
   directionalThreshold: 1.5
-  _ghostItemPrefab: {fileID: -312594553302920422, guid: 132856c798d9ab441837b76353423e00, type: 3}
