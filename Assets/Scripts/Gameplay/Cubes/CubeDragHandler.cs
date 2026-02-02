@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using DG.Tweening;
 using UI.DropZones;
 using UI.Views;
 using UnityEngine;
@@ -96,7 +96,7 @@ namespace Gameplay.Cubes
                     _dragLayer,
                     screenPos,
                     _eventCamera,
-                    out var localPoint
+                    out Vector2 localPoint
                 )
             )
             {
@@ -149,21 +149,57 @@ namespace Gameplay.Cubes
 
             if (dropTarget == null)
             {
+                Debug.Log("Dropped over: nothing");
+
+                AnimateCubeDisappear(_ghost);
+                _ghost = null;
                 return;
             }
 
-            //Проверяем над какой drop-зоной отпустили кубик
-            if (dropTarget.GetComponentInParent<TowerDropZone>() != null)
+            TowerDropZone towerDropZone = dropTarget.GetComponentInParent<TowerDropZone>();
+            if (towerDropZone != null)
             {
-                //TODO: Обработать drop на башню
+                Debug.Log($"Dropped over Tower: {dropTarget.name}");
+
+                bool added = towerDropZone.AddCube(_ghost, destroyAfterAnimation: false);
+                if (added)
+                {
+                    _ghost = null;
+                }
+                else
+                {
+                    Debug.Log("Tower is full, cube rejected");
+                    AnimateCubeDisappear(_ghost);
+                    _ghost = null;
+                }
+            }
+            else
+            {
+                Debug.Log("Dropped outside of tower");
+                AnimateCubeDisappear(_ghost);
+                _ghost = null;
+            }
+        }
+
+        private void AnimateCubeDisappear(CubeItemView cube)
+        {
+            if (cube == null || cube.RectTransform == null)
+            {
+                Debug.LogWarning("Cube already destroyed, skipping animation.");
                 return;
             }
 
-            if (dropTarget.GetComponentInParent<HoleDropZone>() != null)
-            {
-                //TODO: Обработать drop в дыру
-                return;
-            }
+            cube.RectTransform.DOScale(Vector3.zero, 0.3f)
+                .SetEase(Ease.InBack)
+                .SetTarget(cube.RectTransform)
+                .SetAutoKill(true)
+                .OnComplete(() =>
+                {
+                    if (cube != null && cube.gameObject != null)
+                    {
+                        Destroy(cube.gameObject);
+                    }
+                });
         }
 
         private void ResetState()
@@ -195,7 +231,7 @@ namespace Gameplay.Cubes
                 _source.RectTransform,
                 eventData.position,
                 _eventCamera,
-                out var sourcePoint
+                out Vector2 sourcePoint
             );
 
             _pointerOffsetLocal = sourcePoint;
