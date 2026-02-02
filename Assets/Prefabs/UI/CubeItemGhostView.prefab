@@ -118,3 +118,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minDragDistance: 10
   directionalThreshold: 1.5
+  _ghostItemPrefab: {fileID: -312594553302920422}

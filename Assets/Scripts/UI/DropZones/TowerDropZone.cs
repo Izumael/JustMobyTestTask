@@ -94,6 +94,93 @@ namespace UI.DropZones
             return true;
         }
 
+        public int GetCubeIndex(CubeItemView cube)
+        {
+            return _stackedCubes.IndexOf(cube);
+        }
+
+        public CubeItemView RemoveCubeAt(int index)
+        {
+            if (index < 0 || index >= _stackedCubes.Count)
+            {
+                return null;
+            }
+
+            //Удаляем куб по индексу и анимируем опускание верхних
+            CubeItemView removed = _stackedCubes[index];
+            _stackedCubes.RemoveAt(index);
+
+            //Все кубики выше опускаются вниз
+            AnimateCubesAbove(index);
+
+            return removed;
+        }
+
+        private void AnimateCubesAbove(int startIndex)
+        {
+            for (int i = startIndex; i < _stackedCubes.Count; i++)
+            {
+                CubeItemView cube = _stackedCubes[i];
+
+                //Проверяем касание с нижним кубом
+                if (i > 0)
+                {
+                    CubeItemView lowerCube = _stackedCubes[i - 1];
+
+                    if (!IsTouching(cube, lowerCube))
+                    {
+                        //Не касается - удаляем этот и все кубики выше
+                        RemoveAllCubesAbove(i);
+                        return;
+                    }
+                }
+
+                //Касается или это первый куб - анимируем опускание
+                float cubeHeight = cube.RectTransform.rect.height;
+                float newPosY = bottomOffset + (i * cubeHeight);
+
+                cube.RectTransform.DOAnchorPosY(newPosY, 0.3f)
+                    .SetEase(Ease.OutQuad)
+                    .SetTarget(cube.RectTransform)
+                    .SetAutoKill(true);
+            }
+        }
+
+        private bool IsTouching(CubeItemView upper, CubeItemView lower)
+        {
+            float upperX = upper.RectTransform.anchoredPosition.x;
+            float lowerX = lower.RectTransform.anchoredPosition.x;
+
+            float cubeWidth = upper.RectTransform.rect.width;
+
+            //Касаются если расстояние между центрами меньше ширины куба
+            float distance = Mathf.Abs(upperX - lowerX);
+            return distance < cubeWidth;
+        }
+
+        private void RemoveAllCubesAbove(int startIndex)
+        {
+            //Удаляем все кубы начиная с startIndex с анимацией падения
+            for (int i = _stackedCubes.Count - 1; i >= startIndex; i--)
+            {
+                CubeItemView cube = _stackedCubes[i];
+                _stackedCubes.RemoveAt(i);
+
+                //Анимация исчезновения
+                cube.RectTransform.DOScale(Vector3.zero, 0.3f)
+                    .SetEase(Ease.InBack)
+                    .SetTarget(cube.RectTransform)
+                    .SetAutoKill(true)
+                    .OnComplete(() =>
+                    {
+                        if (cube != null && cube.gameObject != null)
+                        {
+                            Destroy(cube.gameObject);
+                        }
+                    });
+            }
+        }
+
         private void AnimateCubeAddition(CubeItemView cube, bool destroyAfterAnimation)
         {
             if (cube == null || cube.RectTransform == null)

@@ -10,7 +10,13 @@ using Zenject;
 namespace Gameplay.Cubes
 {
     [RequireComponent(typeof(CubeItemView))]
-    public class CubeDragHandler : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IInitializePotentialDragHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class CubeDragHandler :
+        MonoBehaviour,
+        IPointerDownHandler,
+        IPointerUpHandler,
+        IBeginDragHandler,
+        IDragHandler,
+        IEndDragHandler
     {
         [SerializeField]
         private float minDragDistance = 10f;
@@ -35,16 +41,34 @@ namespace Gameplay.Cubes
         private Vector2 _pointerDownScreenPos;
         private Camera _eventCamera;
 
+        private bool _isFromTower;
+        private int _towerIndex;
+
+        private HoleDropZone _holeDropZone;
+
         [Inject]
         private void Construct(DiContainer container)
         {
             _diContainer = container;
         }
 
-        public void Initialize(ScrollRect scrollRect, RectTransform dragLayer)
+        public void Initialize(ScrollRect scrollRect, RectTransform dragLayer, HoleDropZone holeDropZone = null, CubeItemView ghostPrefab = null)
         {
             _scrollRect = scrollRect;
             _dragLayer = dragLayer;
+            _holeDropZone = holeDropZone;
+
+            //Если HoleDropZone не передана, ищем в сцене
+            if (_holeDropZone == null)
+            {
+                _holeDropZone = FindObjectOfType<HoleDropZone>();
+            }
+
+            //Если передан ghostPrefab, используем его
+            if (ghostPrefab != null)
+            {
+                _ghostItemPrefab = ghostPrefab;
+            }
         }
 
         private void Awake()
@@ -52,9 +76,44 @@ namespace Gameplay.Cubes
             _source = GetComponent<CubeItemView>();
         }
 
+        private void HideSource()
+        {
+            //Скрываем через прозрачность, НЕ через SetActive
+            //SetActive(false) блокирует события!
+            CanvasGroup canvasGroup = _source.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 0f;
+            }
+        }
+
+        private void ShowSource()
+        {
+            //Восстанавливаем прозрачность
+            CanvasGroup canvasGroup = _source.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+            }
+        }
+
         private void StartDrag()
         {
             _isDragging = true;
+
+            if (_dragLayer == null)
+            {
+                Debug.LogError("_dragLayer is null! Cannot start drag.");
+                ResetState();
+                return;
+            }
+
+            if (_ghostItemPrefab == null)
+            {
+                Debug.LogError("_ghostItemPrefab is null! Cannot create ghost.");
+                ResetState();
+                return;
+            }
 
             //Создаём ghost-клон, которого фактически будем тащить
             //TODO: заменить на пулл
@@ -80,6 +139,16 @@ namespace Gameplay.Cubes
 
             //Source тоже не блокирует во время драга
             _source.SetBlocksRaycasts(false);
+
+            //Для кубов из башни: используем центр куба как offset (держим за центр)
+            if (_isFromTower)
+            {
+                //Offset = центр куба (нулевая точка в локальных координатах ghost)
+                _pointerOffsetLocal = Vector2.zero;
+
+                //Скрываем оригинал визуально через прозрачность (НЕ SetActive!)
+                HideSource();
+            }
 
             //Сразу позиционируем ghost под курсором
             MoveGhost(Input.mousePosition);
@@ -147,38 +216,92 @@ namespace Gameplay.Cubes
                 }
             }
 
+            //Сначала проверяем дроп на HoleDropZone с овальной проверкой
+            if (_holeDropZone != null && _holeDropZone.IsPointInsideOval(Input.mousePosition, _eventCamera))
+            {
+
+                if (_isFromTower)
+                {
+                    //Удаляем куб из башни по индексу
+                    if (_holeDropZone.TryRemoveCubeAt(_towerIndex, out CubeItemView removedCube))
+                    {
+                        AnimateCubeIntoHole(removedCube);
+                    }
+                }
+
+                //Ghost летит в дыру с анимацией засасывания
+                AnimateCubeIntoHole(_ghost);
+                _ghost = null;
+                return;
+            }
+
             if (dropTarget == null)
             {
-                Debug.Log("Dropped over: nothing");
+
+                //Возвращаем куб если он из башни
+                if (_isFromTower && _source != null)
+                {
+                    ShowSource();
+                }
 
                 AnimateCubeDisappear(_ghost);
                 _ghost = null;
                 return;
             }
 
+            //Проверяем дроп на TowerDropZone
             TowerDropZone towerDropZone = dropTarget.GetComponentInParent<TowerDropZone>();
             if (towerDropZone != null)
             {
-                Debug.Log($"Dropped over Tower: {dropTarget.name}");
 
-                bool added = towerDropZone.AddCube(_ghost, destroyAfterAnimation: false);
-                if (added)
+                if (_isFromTower)
                 {
+                    //Куб из башни - возвращаем обратно (показываем source)
+                    if (_source != null)
+                    {
+                        ShowSource();
+                    }
+                    AnimateCubeDisappear(_ghost);
                     _ghost = null;
                 }
                 else
                 {
-                    Debug.Log("Tower is full, cube rejected");
-                    AnimateCubeDisappear(_ghost);
-                    _ghost = null;
+                    //Куб из нижней панели - добавляем в башню
+                    bool added = towerDropZone.AddCube(_ghost, destroyAfterAnimation: false);
+                    if (added)
+                    {
+                        //Включаем обратно raycast и CubeDragHandler для кубов в башне
+                        //чтобы их можно было перетащить в дыру
+                        _ghost.SetBlocksRaycasts(true);
+
+                        CubeDragHandler ghostHandler = _ghost.GetComponent<CubeDragHandler>();
+                        if (ghostHandler != null)
+                        {
+                            ghostHandler.enabled = true;
+                            ghostHandler.Initialize(_scrollRect, _dragLayer, _holeDropZone, _ghostItemPrefab);
+                        }
+
+                        _ghost = null;
+                    }
+                    else
+                    {
+                        AnimateCubeDisappear(_ghost);
+                        _ghost = null;
+                    }
                 }
+                return;
             }
-            else
+
+            //Дропнули куда-то еще - куб исчезает
+
+            //Возвращаем куб если он из башни
+            if (_isFromTower && _source != null)
             {
-                Debug.Log("Dropped outside of tower");
-                AnimateCubeDisappear(_ghost);
-                _ghost = null;
+                ShowSource();
             }
+
+            AnimateCubeDisappear(_ghost);
+            _ghost = null;
         }
 
         private void AnimateCubeDisappear(CubeItemView cube)
@@ -202,6 +325,66 @@ namespace Gameplay.Cubes
                 });
         }
 
+        private void AnimateCubeIntoHole(CubeItemView cube)
+        {
+            if (cube == null || cube.RectTransform == null)
+            {
+                Debug.LogWarning("Cube already destroyed, skipping animation.");
+                return;
+            }
+
+            if (_holeDropZone == null)
+            {
+                AnimateCubeDisappear(cube);
+                return;
+            }
+
+            //Получаем RectTransform дыры (именно dropZoneRect, не GameObject!)
+            RectTransform holeRect = _holeDropZone.GetDropZoneRect();
+            if (holeRect == null)
+            {
+                Debug.LogWarning("HoleDropZone has no dropZoneRect!");
+                AnimateCubeDisappear(cube);
+                return;
+            }
+
+            //Конвертируем позицию центра дыры в координаты dragLayer
+            Vector3[] holeCorners = new Vector3[4];
+            holeRect.GetWorldCorners(holeCorners);
+            Vector3 holeCenter = (holeCorners[0] + holeCorners[2]) / 2f;
+
+            Vector2 holeScreenPos = RectTransformUtility.WorldToScreenPoint(_eventCamera, holeCenter);
+
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    _dragLayer,
+                    holeScreenPos,
+                    _eventCamera,
+                    out Vector2 holeLocalPos
+                ))
+            {
+                Debug.LogWarning("Failed to convert hole position to dragLayer local space!");
+                AnimateCubeDisappear(cube);
+                return;
+            }
+
+            //Анимация: куб летит к центру дыры, вращается и уменьшается
+            Sequence sequence = DOTween.Sequence();
+
+            sequence.Append(cube.RectTransform.DOAnchorPos(holeLocalPos, 0.4f).SetEase(Ease.InQuad));
+            sequence.Join(cube.RectTransform.DOScale(Vector3.zero, 0.4f).SetEase(Ease.InBack));
+            sequence.Join(cube.RectTransform.DORotate(new Vector3(0, 0, 360), 0.4f, RotateMode.FastBeyond360).SetEase(Ease.InQuad));
+
+            sequence.SetTarget(cube.RectTransform);
+            sequence.SetAutoKill(true);
+            sequence.OnComplete(() =>
+            {
+                if (cube != null && cube.gameObject != null)
+                {
+                    Destroy(cube.gameObject);
+                }
+            });
+        }
+
         private void ResetState()
         {
             if (_ghost != null)
@@ -215,6 +398,8 @@ namespace Gameplay.Cubes
             _pointerDown = false;
             _pointerOffsetLocal = Vector2.zero;
             _pointerDownScreenPos = Vector2.zero;
+            _isFromTower = false;
+            _towerIndex = -1;
         }
 
         void IPointerDownHandler.OnPointerDown(PointerEventData eventData)
@@ -225,6 +410,19 @@ namespace Gameplay.Cubes
 
             //Кэшируем точку клика для определения направления движения
             _pointerDownScreenPos = eventData.position;
+
+            //Определяем откуда тащим куб: из башни или из нижней панели
+            TowerDropZone tower = _source.GetComponentInParent<TowerDropZone>();
+            if (tower != null)
+            {
+                _isFromTower = true;
+                _towerIndex = tower.GetCubeIndex(_source);
+            }
+            else
+            {
+                _isFromTower = false;
+                _towerIndex = -1;
+            }
 
             //Рассчитываем смещение внутри куба, чтобы он не прыгал центром под курсором
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
@@ -248,6 +446,14 @@ namespace Gameplay.Cubes
 
         void IBeginDragHandler.OnBeginDrag(PointerEventData eventData)
         {
+            //Кубы из башни ВСЕГДА драгаются, скролл запрещен
+            if (_isFromTower)
+            {
+                _isScrolling = false;
+                StartDrag();
+                return;
+            }
+
             //Определяем направление движения для выбора режима: скролл или драг
             Vector2 delta = eventData.position - _pointerDownScreenPos;
 
@@ -330,11 +536,6 @@ namespace Gameplay.Cubes
 
                 ResetState();
             }
-        }
-
-        void IInitializePotentialDragHandler.OnInitializePotentialDrag(PointerEventData eventData)
-        {
-            //Сообщаем EventSystem что мы обрабатываем drag события
         }
     }
 }

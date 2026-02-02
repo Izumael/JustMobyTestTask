@@ -77,7 +77,7 @@ namespace UI.Panels
                 Color color = config.CubeColors[i % config.CubeColors.Count];
                 item.Bind(new CubeDescriptor(color));
                 CubeDragHandler drag = item.gameObject.GetComponent<CubeDragHandler>();
-                drag.Initialize(scrollRect, dragLayer);
+                drag.Initialize(scrollRect, dragLayer, null, cubeItemPrefab);
             }
         }
     }
